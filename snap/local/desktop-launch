@@ -1,0 +1,58 @@
+#!/bin/bash
+###############################################################################
+# Launcher wrapper for the goose desktop (Electron) app inside a classic snap.
+#
+# Classic confinement gives the app full host access, so Electron's own
+# chrome-sandbox (which relies on a SUID helper) cannot be used and must be
+# disabled with --no-sandbox.
+###############################################################################
+set -euo pipefail
+
+APP_ROOT="$SNAP/opt/goose-desktop"
+
+# Keep only the app bundle at the front; forcing core24 libc paths here causes
+# ABI mismatches on newer hosts (e.g. GLIBC_2.43 errors).
+export LD_LIBRARY_PATH="$APP_ROOT:${LD_LIBRARY_PATH:-}"
+
+# Ensure GTK/GSettings can resolve desktop schemas from the snap payload.
+if [ -d "$SNAP/usr/share/glib-2.0/schemas" ]; then
+	export GSETTINGS_SCHEMA_DIR="$SNAP/usr/share/glib-2.0/schemas"
+fi
+export XDG_DATA_DIRS="$SNAP/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+
+# Make host toolchains the agent shells out to (cargo, node, docker, uvx, ...)
+# resolvable, while still preferring anything the snap ships.
+export PATH="$SNAP/usr/bin:$SNAP/bin:$PATH"
+
+# The packaged Electron executable is named after productName ("Goose").
+electron_args=(
+	--no-sandbox
+)
+
+# Some Wayland/classic-snap setups fail during Chromium EGL/GPU init.
+# Keep the default launch path conservative, with opt-in overrides.
+if [ "${GOOSE_ENABLE_GPU:-0}" != "1" ]; then
+	electron_args+=(--disable-gpu)
+fi
+
+if [ "${GOOSE_USE_DEV_SHM:-0}" != "1" ]; then
+	electron_args+=(--disable-dev-shm-usage)
+fi
+
+# Platform selection:
+# - default: prefer Wayland when available, otherwise use X11
+# - override: set GOOSE_OZONE_PLATFORM to one of wayland|x11|auto
+if [ -n "${GOOSE_OZONE_PLATFORM:-}" ]; then
+	electron_args+=(--ozone-platform="${GOOSE_OZONE_PLATFORM}")
+elif [ -n "${WAYLAND_DISPLAY:-}" ]; then
+	electron_args+=(--ozone-platform=wayland)
+elif [ -n "${DISPLAY:-}" ]; then
+	electron_args+=(--ozone-platform=x11)
+fi
+
+# Avoid leaking snap runtime env into the desktop process in classic confinement.
+for var in $(env | cut -d= -f1 | grep '^SNAP'); do
+	unset "$var"
+done
+
+exec "$APP_ROOT/Goose" "${electron_args[@]}" "$@"

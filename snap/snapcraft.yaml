@@ -1,0 +1,151 @@
+name: goose
+base: core24
+title: Goose AI Agent
+summary: An open source, extensible AI agent that automates engineering tasks
+description: |
+  goose is an open source, extensible AI agent that goes beyond code
+  suggestions - it installs, executes, edits, and tests with any LLM.
+
+  This snap bundles both interfaces from the same release:
+    * goose     - the Electron desktop application
+    * goose.cli - the goose command line interface
+
+  Because goose runs host toolchains and arbitrary developer commands, this
+  snap uses classic confinement to operate with full host access.
+license: Apache-2.0
+contact: https://github.com/aaif-goose/goose/issues
+website: https://goose-docs.ai/
+source-code: https://github.com/aaif-goose/goose
+issues: https://github.com/aaif-goose/goose/issues
+donation: https://github.com/sponsors/aaif-goose
+adopt-info: goose-cli
+assumes: [snapd2.76]
+
+grade: stable
+confinement: classic
+
+lint:
+  ignore:
+    - classic
+    - library
+
+platforms:
+  amd64:
+    build-on: [amd64]
+    build-for: [amd64]
+
+apps:
+  cli:
+    command: bin/goose
+    completer: usr/share/bash-completion/completions/goose.cli
+  goose:
+    command: bin/desktop-launch
+    desktop: usr/share/applications/goose.desktop
+    plugs:
+      - desktop
+
+parts:
+  launcher:
+    plugin: dump
+    source: snap/local
+    organize:
+      desktop-launch: bin/desktop-launch
+
+  goose-cli:
+    plugin: rust
+    source: https://github.com/aaif-goose/goose
+    source-type: git
+    source-tag: v1.43.0
+    rust-channel: stable
+    override-build: |
+      version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)"
+      if [ -z "$version" ]; then
+        echo "could not determine workspace version from Cargo.toml" >&2
+        exit 1
+      fi
+      craftctl set version="$version"
+      source ./bin/activate-hermit
+      cargo build --release -p goose-cli --bin goose
+      install -Dm755 target/release/goose "$CRAFT_PART_INSTALL/bin/goose"
+    build-packages:
+      - build-essential
+      - pkg-config
+      - libssl-dev
+      - libdbus-1-dev
+      - libxcb1-dev
+      - libxcb-util-dev
+      - protobuf-compiler
+      - cmake
+      - clang
+      - libclang-dev
+      - git
+
+  goose-desktop:
+    after: [goose-cli]
+    plugin: nil
+    source: https://github.com/aaif-goose/goose
+    source-type: git
+    source-tag: v1.43.0
+    build-packages:
+      - python3
+      - python3-dev
+      - make
+      - g++
+      - pkg-config
+      - libpython3-dev
+      - libglib2.0-bin
+    override-build: |
+      source ./bin/activate-hermit
+      mkdir -p ui/desktop/src/bin
+      install -Dm755 "$CRAFT_STAGE/bin/goose" ui/desktop/src/bin/goose
+      cd ui/desktop
+      pnpm install --frozen-lockfile
+      pnpm run package
+      app_dir="$(find out -maxdepth 1 -type d -iname '*-linux-x64' | head -n1)"
+      if [ -z "$app_dir" ]; then
+        echo "could not locate packaged Electron output under ui/desktop/out" >&2
+        exit 1
+      fi
+      mkdir -p "$CRAFT_PART_INSTALL/opt/goose-desktop"
+      cp -a "$app_dir/." "$CRAFT_PART_INSTALL/opt/goose-desktop/"
+      dest="$CRAFT_PART_INSTALL/opt/goose-desktop"
+      chmod -R a+rX "$dest"
+      chmod +x "$dest/Goose"
+      [ -f "$dest/chrome-sandbox" ] && chmod 4755 "$dest/chrome-sandbox" || true
+      [ -f "$dest/chrome_crashpad_handler" ] && chmod +x "$dest/chrome_crashpad_handler" || true
+
+      install -Dm644 src/images/icon.png "$CRAFT_PART_INSTALL/meta/gui/icon.png"
+      install -dm755 "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/128x128/apps"
+      install -Dm644 src/images/icon.png "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/128x128/apps/goose.png"
+    stage-packages:
+      - gsettings-desktop-schemas
+    override-prime: |
+      craftctl default
+      schema_dir="$CRAFT_PRIME/usr/share/glib-2.0/schemas"
+      if [ -d "$schema_dir" ]; then
+        glib-compile-schemas "$schema_dir"
+      fi
+  goose-configuration:
+    after:
+      - goose-cli
+      - goose-desktop
+    plugin: nil
+    source: snap/local
+    override-build: |
+      install -Dm644 "$CRAFT_PART_SRC"/goose.cli \
+        "$CRAFT_PART_INSTALL"/usr/share/bash-completion/completions/goose.cli
+      mkdir -p "$CRAFT_PART_INSTALL/usr/share/applications"
+      printf '%s\n' \
+        '[Desktop Entry]' \
+        'Name=Goose' \
+        'GenericName=Goose AI Agent' \
+        'Comment=An open source, extensible AI agent that automates engineering tasks' \
+        'Exec=goose %U' \
+        'Icon=${SNAP}/meta/gui/icon.png' \
+        'Terminal=false' \
+        'Type=Application' \
+        'Categories=Development;' \
+        'MimeType=x-scheme-handler/goose;' \
+        'StartupNotify=true' \
+        'StartupWMClass=Goose' \
+        > "$CRAFT_PART_INSTALL/usr/share/applications/goose.desktop"
