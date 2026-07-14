@@ -19,7 +19,6 @@ source-code: https://github.com/aaif-goose/goose
 issues: https://github.com/aaif-goose/goose/issues
 donation: https://github.com/sponsors/aaif-goose
 adopt-info: goose-cli
-assumes: [snapd2.76]
 
 grade: stable
 confinement: classic
@@ -46,16 +45,17 @@ apps:
 
 parts:
   launcher:
-    plugin: dump
+    plugin: nil
     source: snap/local
-    organize:
-      desktop-launch: bin/desktop-launch
+    override-build: |
+      install -Dm755 "$CRAFT_PART_SRC/desktop-launch" \
+        "$CRAFT_PART_INSTALL/bin/desktop-launch"
 
   goose-cli:
     plugin: rust
     source: https://github.com/aaif-goose/goose
     source-type: git
-    source-tag: v1.43.0
+    source-tag: &goose-release v1.43.0
     rust-channel: stable
     override-build: |
       version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)"
@@ -65,7 +65,7 @@ parts:
       fi
       craftctl set version="$version"
       source ./bin/activate-hermit
-      cargo build --release -p goose-cli --bin goose
+      cargo build --locked --release -p goose-cli --bin goose
       install -Dm755 target/release/goose "$CRAFT_PART_INSTALL/bin/goose"
     build-packages:
       - build-essential
@@ -85,7 +85,7 @@ parts:
     plugin: nil
     source: https://github.com/aaif-goose/goose
     source-type: git
-    source-tag: v1.43.0
+    source-tag: *goose-release
     build-packages:
       - python3
       - python3-dev
@@ -111,8 +111,12 @@ parts:
       dest="$CRAFT_PART_INSTALL/opt/goose-desktop"
       chmod -R a+rX "$dest"
       chmod +x "$dest/Goose"
-      [ -f "$dest/chrome-sandbox" ] && chmod 4755 "$dest/chrome-sandbox" || true
+      [ -f "$dest/chrome-sandbox" ] && chmod 755 "$dest/chrome-sandbox" || true
       [ -f "$dest/chrome_crashpad_handler" ] && chmod +x "$dest/chrome_crashpad_handler" || true
+      if [ -f "$dest/resources/bin/goose" ]; then
+        rm "$dest/resources/bin/goose"
+        ln -s ../../../../bin/goose "$dest/resources/bin/goose"
+      fi
 
       install -Dm644 src/images/icon.png "$CRAFT_PART_INSTALL/meta/gui/icon.png"
       install -dm755 "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/128x128/apps"
@@ -132,8 +136,15 @@ parts:
     plugin: nil
     source: snap/local
     override-build: |
-      install -Dm644 "$CRAFT_PART_SRC"/goose.cli \
-        "$CRAFT_PART_INSTALL"/usr/share/bash-completion/completions/goose.cli
+      install -dm755 "$CRAFT_PART_INSTALL"/usr/share/bash-completion/completions
+      "$CRAFT_STAGE"/bin/goose completion bash --bin-name goose.cli \
+        > "$CRAFT_PART_INSTALL"/usr/share/bash-completion/completions/goose.cli
+      install -dm755 "$CRAFT_PART_INSTALL"/usr/share/fish/vendor_completions.d
+      "$CRAFT_STAGE"/bin/goose completion fish --bin-name goose.cli \
+        > "$CRAFT_PART_INSTALL"/usr/share/fish/vendor_completions.d/goose.cli.fish
+      install -dm755 "$CRAFT_PART_INSTALL"/usr/share/zsh/vendor-completions
+      "$CRAFT_STAGE"/bin/goose completion zsh --bin-name goose.cli \
+        > "$CRAFT_PART_INSTALL"/usr/share/zsh/vendor-completions/_goose.cli
       mkdir -p "$CRAFT_PART_INSTALL/usr/share/applications"
       printf '%s\n' \
         '[Desktop Entry]' \

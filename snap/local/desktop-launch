@@ -12,7 +12,11 @@ APP_ROOT="$SNAP/opt/goose-desktop"
 
 # Keep only the app bundle at the front; forcing core24 libc paths here causes
 # ABI mismatches on newer hosts (e.g. GLIBC_2.43 errors).
-export LD_LIBRARY_PATH="$APP_ROOT:${LD_LIBRARY_PATH:-}"
+if [ -n "${LD_LIBRARY_PATH:-}" ]; then
+	export LD_LIBRARY_PATH="$APP_ROOT:$LD_LIBRARY_PATH"
+else
+	export LD_LIBRARY_PATH="$APP_ROOT"
+fi
 
 # Ensure GTK/GSettings can resolve desktop schemas from the snap payload.
 if [ -d "$SNAP/usr/share/glib-2.0/schemas" ]; then
@@ -39,15 +43,8 @@ if [ "${GOOSE_USE_DEV_SHM:-0}" != "1" ]; then
 	electron_args+=(--disable-dev-shm-usage)
 fi
 
-# Platform selection:
-# - default: prefer Wayland when available, otherwise use X11
-# - override: set GOOSE_OZONE_PLATFORM to one of wayland|x11|auto
 if [ -n "${GOOSE_OZONE_PLATFORM:-}" ]; then
 	electron_args+=(--ozone-platform="${GOOSE_OZONE_PLATFORM}")
-elif [ -n "${WAYLAND_DISPLAY:-}" ]; then
-	electron_args+=(--ozone-platform=wayland)
-elif [ -n "${DISPLAY:-}" ]; then
-	electron_args+=(--ozone-platform=x11)
 fi
 
 # Avoid leaking snap runtime env into the desktop process in classic confinement.
