@@ -26,7 +26,10 @@ jobs:
         uses: actions/checkout@v7.0.0
 
       - name: Install snapcraft
-        run: sudo snap install snapcraft --classic
+        uses: ./.github/actions/cached-snap
+        with:
+          name: snapcraft
+          classic: 'true'
 
       - name: Read snap name
         id: snap-name

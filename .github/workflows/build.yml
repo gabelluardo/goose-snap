@@ -91,7 +91,10 @@ jobs:
           path: dist
 
       - name: Install snapcraft
-        run: sudo snap install snapcraft --classic
+        uses: ./.github/actions/cached-snap
+        with:
+          name: snapcraft
+          classic: 'true'
 
       - name: Upload snap
         env:

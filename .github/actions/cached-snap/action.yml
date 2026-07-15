@@ -1,0 +1,100 @@
+name: Cached snap install
+description: Install a snap from a GitHub Actions cache when possible
+
+inputs:
+  name:
+    description: Snap name
+    required: true
+  channel:
+    description: Snap Store channel
+    default: latest/stable
+  classic:
+    description: Install with classic confinement
+    default: 'false'
+  components:
+    description: Comma-separated component names to download and install
+    default: ''
+  cache:
+    description: Enable GitHub Actions cache
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve cache key
+      id: cache-key
+      shell: bash
+      run: |
+        set -euo pipefail
+        arch="$(dpkg --print-architecture)"
+        scope="${{ inputs.name }}-${{ inputs.channel }}-${{ inputs.components }}-$arch"
+        safe_scope="$(printf '%s' "$scope" | tr '/, ' '---')"
+        echo "path=${{ github.workspace }}/.cache/snaps/$safe_scope" >> "$GITHUB_OUTPUT"
+        echo "key=snap-$safe_scope" >> "$GITHUB_OUTPUT"
+
+    - name: Restore snap cache
+      if: ${{ inputs.cache == 'true' }}
+      uses: actions/cache@v6
+      with:
+        path: ${{ steps.cache-key.outputs.path }}
+        key: ${{ steps.cache-key.outputs.key }}
+
+    - name: Install snap
+      shell: bash
+      env:
+        SNAP_NAME: ${{ inputs.name }}
+        SNAP_CHANNEL: ${{ inputs.channel }}
+        SNAP_CLASSIC: ${{ inputs.classic }}
+        SNAP_COMPONENTS: ${{ inputs.components }}
+        SNAP_CACHE_DIR: ${{ steps.cache-key.outputs.path }}
+      run: |
+        set -euo pipefail
+
+        mkdir -p "$SNAP_CACHE_DIR"
+
+        target="$SNAP_NAME"
+        IFS=',' read -r -a components <<< "$SNAP_COMPONENTS"
+        for component in "${components[@]}"; do
+          component="${component//[[:space:]]/}"
+          if [ -n "$component" ]; then
+            target+="+$component"
+          fi
+        done
+
+        cache_ready=true
+        if ! ls "$SNAP_CACHE_DIR"/"$SNAP_NAME"_*.snap >/dev/null 2>&1; then
+          cache_ready=false
+        fi
+        for component in "${components[@]}"; do
+          component="${component//[[:space:]]/}"
+          if [ -n "$component" ] && ! ls "$SNAP_CACHE_DIR"/"$SNAP_NAME+$component"_*.comp >/dev/null 2>&1; then
+            cache_ready=false
+          fi
+        done
+
+        if [ "$cache_ready" != "true" ]; then
+          rm -f "$SNAP_CACHE_DIR"/*.snap "$SNAP_CACHE_DIR"/*.assert "$SNAP_CACHE_DIR"/*.comp
+          snap download --target-directory "$SNAP_CACHE_DIR" --channel "$SNAP_CHANNEL" "$target"
+        fi
+
+        snap_file="$(ls "$SNAP_CACHE_DIR"/"$SNAP_NAME"_*.snap | head -n 1)"
+        assert_file="${snap_file%.snap}.assert"
+        if [ -f "$assert_file" ]; then
+          sudo snap ack "$assert_file"
+        fi
+
+        install_args=("$snap_file")
+        for component in "${components[@]}"; do
+          component="${component//[[:space:]]/}"
+          if [ -z "$component" ]; then
+            continue
+          fi
+          comp_file="$(ls "$SNAP_CACHE_DIR"/"$SNAP_NAME+$component"_*.comp | head -n 1)"
+          install_args+=("$comp_file")
+        done
+
+        if [ "$SNAP_CLASSIC" = "true" ]; then
+          sudo snap install --classic "${install_args[@]}"
+        else
+          sudo snap install "${install_args[@]}"
+        fi
