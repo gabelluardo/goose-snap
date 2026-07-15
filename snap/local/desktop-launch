@@ -34,12 +34,12 @@ electron_args=(
 )
 
 # Some Wayland/classic-snap setups fail during Chromium EGL/GPU init.
-# Keep the default launch path conservative, with opt-in overrides.
-if [ "${GOOSE_ENABLE_GPU:-0}" != "1" ]; then
+# Keep upstream defaults by default, with opt-out toggles for problematic hosts.
+if [ "${GOOSE_ENABLE_GPU:-1}" != "1" ]; then
 	electron_args+=(--disable-gpu)
 fi
 
-if [ "${GOOSE_USE_DEV_SHM:-0}" != "1" ]; then
+if [ "${GOOSE_USE_DEV_SHM:-1}" != "1" ]; then
 	electron_args+=(--disable-dev-shm-usage)
 fi
 
