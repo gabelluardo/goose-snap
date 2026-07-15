@@ -1,0 +1,93 @@
+name: Build
+
+on:
+  push:
+    branches: [main, master, develop]
+    tags: ['v*']
+    paths:
+      - 'snap/**'
+      - '.github/workflows/**'
+      - '.image-garden.mk'
+      - 'spread.yaml'
+      - 'tests/**'
+  pull_request:
+    branches: [main, master, develop]
+    paths:
+      - 'snap/**'
+      - '.github/workflows/**'
+      - '.image-garden.mk'
+      - 'spread.yaml'
+      - 'tests/**'
+  workflow_dispatch:
+    inputs:
+      skip-spread-tests:
+        type: boolean
+        description: Skip image-garden smoke tests
+        default: false
+
+concurrency:
+  group: build-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  snap:
+    name: Build snap
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Build snap
+        uses: snapcore/action-build@v1
+
+      - name: Upload snap artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: goose-snap-amd64
+          path: ./*.snap
+          if-no-files-found: error
+          retention-days: 7
+
+  smoke:
+    name: Smoke tests
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip-spread-tests }}
+    needs: snap
+    strategy:
+      fail-fast: false
+      matrix:
+        system:
+          - ubuntu-cloud-24.04
+          - ubuntu-cloud-26.04
+          - debian-cloud-13
+          - fedora-cloud-43
+    uses: ./.github/workflows/spread.yml
+    with:
+      snap-artifact: goose-snap-amd64
+      spread-system: ${{ matrix.system }}
+
+  publish:
+    name: Publish
+    if: ${{ always() && github.event_name != 'pull_request' && needs.snap.result == 'success' && (needs.smoke.result == 'success' || needs.smoke.result == 'skipped') }}
+    needs: [snap, smoke]
+    runs-on: ubuntu-24.04
+    environment:
+      name: ${{ github.ref_type == 'tag' && 'latest/candidate' || vars.SNAPCRAFT_CHANNEL || 'latest/edge' }}
+      deployment: true
+    steps:
+      - name: Download snap artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: goose-snap-amd64
+          path: dist
+
+      - name: Install snapcraft
+        run: sudo snap install snapcraft --classic
+
+      - name: Upload snap
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+          SNAP_CHANNEL: ${{ github.ref_type == 'tag' && 'latest/candidate' || vars.SNAPCRAFT_CHANNEL || 'latest/edge' }}
+        run: |
+          set -euo pipefail
+          snap_file="$(ls dist/*.snap | head -n 1)"
+          snapcraft upload --release "$SNAP_CHANNEL" "$snap_file"

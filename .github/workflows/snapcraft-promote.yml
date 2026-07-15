@@ -1,0 +1,52 @@
+name: Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      source-channel:
+        description: Snap Store channel to promote revisions from
+        required: true
+        default: latest/candidate
+        type: string
+      target-channel:
+        description: Snap Store channel to promote revisions into
+        required: true
+        default: latest/stable
+        type: string
+
+jobs:
+  promote:
+    name: ${{ inputs.source-channel }} to ${{ inputs.target-channel }}
+    runs-on: ubuntu-24.04
+    environment:
+      name: ${{ inputs.target-channel }}
+      deployment: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Install snapcraft
+        run: sudo snap install snapcraft --classic
+
+      - name: Read snap name
+        id: snap-name
+        run: |
+          set -euo pipefail
+          name="$(sed -nE 's/^name:[[:space:]]*([^[:space:]#]+).*$/\1/p' snap/snapcraft.yaml | head -n1)"
+          if [ -z "$name" ]; then
+            echo "snap name not found" >&2
+            exit 1
+          fi
+          echo "value=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Promote revision
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+          SNAP_NAME: ${{ steps.snap-name.outputs.value }}
+        run: |
+          set -euo pipefail
+          snapcraft promote \
+            --from-channel="${{ inputs.source-channel }}" \
+            --to-channel="${{ inputs.target-channel }}" \
+            --yes \
+            "$SNAP_NAME"

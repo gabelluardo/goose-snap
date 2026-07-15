@@ -1,0 +1,79 @@
+name: spread
+
+on:
+  workflow_call:
+    inputs:
+      snap-artifact:
+        type: string
+        required: true
+      spread-system:
+        type: string
+        required: true
+
+jobs:
+  smoke:
+    name: ${{ inputs.spread-system }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Download snap
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.snap-artifact }}
+          path: .
+
+      - name: Install image-garden and spread
+        run: |
+          sudo snap install core24
+          sudo snap install image-garden --channel latest/stable --component qemu-x86-64 --component spread
+          sudo snap alias image-garden.spread spread
+
+      - name: Cache base images
+        uses: actions/cache@v6
+        with:
+          path: ~/snap/image-garden/common/cache/dl
+          key: image-garden-${{ inputs.spread-system }}-x86-64
+
+      - name: Enable KVM for the runner
+        run: |
+          if [ -c /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+          fi
+
+      - name: Create test image
+        run: |
+          mkdir -p ~/snap/image-garden/common/cache/dl
+          image-garden make \
+            ${{ inputs.spread-system }}.x86_64.qcow2 \
+            ${{ inputs.spread-system }}.x86_64.run \
+            ${{ inputs.spread-system }}.x86_64.user-data \
+            ${{ inputs.spread-system }}.x86_64.meta-data \
+            ${{ inputs.spread-system }}.x86_64.seed.iso
+
+      - name: Run smoke suite
+        env:
+          SPREAD_ARCH: x86_64
+        run: |
+          set +e
+          spread -v ${{ inputs.spread-system }}:tests/smoke 2>&1 | tee spread.log
+          status=${PIPESTATUS[0]}
+          set -e
+          exit "$status"
+
+      - name: Upload spread log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: spread-log-${{ inputs.spread-system }}
+          path: spread.log
+          if-no-files-found: ignore
+
+      - name: Upload image-garden logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-garden-logs-${{ inputs.spread-system }}
+          path: .image-garden/*.log
+          if-no-files-found: ignore

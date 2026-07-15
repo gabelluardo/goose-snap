@@ -1,0 +1,41 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**",
+    "**/examples/**",
+    "**/__fixtures__/**"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update goose version in snapcraft.yaml",
+      "managerFilePatterns": [
+        "snap/snapcraft\\.yaml"
+      ],
+      "matchStrings": [
+        "source-tag:\\s*(?:&\\S+\\s*)?v(?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "aaif-goose/goose",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Update goose version in smoke tests",
+      "managerFilePatterns": [
+        "tests/smoke/goose-cli/task\\.yaml"
+      ],
+      "matchStrings": [
+        "goose\\.cli --version 2>&1 \\| MATCH \\\"(?<currentValue>[0-9.]+)\\\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "aaif-goose/goose",
+      "versioningTemplate": "semver"
+    }
+  ]
+}

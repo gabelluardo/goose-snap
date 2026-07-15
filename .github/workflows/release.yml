@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Tag to release, for example v1.43.0
+        required: true
+        type: string
+      target:
+        description: Branch or SHA to tag
+        required: false
+        default: main
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.target || github.ref }}
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.version }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+          case "$tag" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "invalid release tag: $tag" >&2; exit 1 ;;
+          esac
+          echo "value=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Compare tag with packaged Goose version
+        run: |
+          set -euo pipefail
+          packaged="$(sed -nE 's/^[[:space:]]*source-tag:[[:space:]]*(&[^[:space:]]+[[:space:]]*)?(v[^[:space:]#]+).*/\2/p' snap/snapcraft.yaml | head -n1)"
+          if [ "${{ steps.tag.outputs.value }}" != "$packaged" ]; then
+            echo "release tag ${{ steps.tag.outputs.value }} does not match snapcraft source-tag $packaged" >&2
+            exit 1
+          fi
+
+      - name: Create tag
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euo pipefail
+          tag="${{ steps.tag.outputs.value }}"
+          if ! git rev-parse "$tag" >/dev/null 2>&1; then
+            git tag "$tag"
+            git push origin "$tag"
+          fi
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TAG" --notes "Goose snap $TAG"
+          else
+            gh release create "$TAG" --title "$TAG" --notes "Goose snap $TAG"
+          fi

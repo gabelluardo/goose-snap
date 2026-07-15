@@ -1,0 +1,8 @@
+summary: Check the goose CLI app
+details: |
+    Exercise the command line entry point installed by the snap.
+
+execute: |
+    snap list | MATCH "goose"
+    snap run goose.cli --help 2>&1 | MATCH "Usage: goose"
+    snap run goose.cli --version 2>&1 | MATCH "1.43.0"
