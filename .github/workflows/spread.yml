@@ -27,7 +27,7 @@ jobs:
       - name: Install image-garden and spread
         run: |
           sudo snap install core24
-          sudo snap install image-garden --channel latest/stable --component qemu-x86-64 --component spread
+          sudo snap install image-garden+qemu-x86-64+spread --channel latest/stable
           sudo snap alias image-garden.spread spread
 
       - name: Cache base images
