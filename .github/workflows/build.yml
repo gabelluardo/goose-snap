@@ -3,21 +3,21 @@ name: Build
 on:
   push:
     branches: [main, master, develop]
-    tags: ['v*']
+    tags: ["v*"]
     paths:
-      - 'snap/**'
-      - '.github/workflows/**'
-      - '.image-garden.mk'
-      - 'spread.yaml'
-      - 'tests/**'
+      - "snap/**"
+      - ".github/workflows/**"
+      - ".image-garden.mk"
+      - "spread.yaml"
+      - "tests/**"
   pull_request:
     branches: [main, master, develop]
     paths:
-      - 'snap/**'
-      - '.github/workflows/**'
-      - '.image-garden.mk'
-      - 'spread.yaml'
-      - 'tests/**'
+      - "snap/**"
+      - ".github/workflows/**"
+      - ".image-garden.mk"
+      - "spread.yaml"
+      - "tests/**"
   workflow_dispatch:
     inputs:
       skip-spread-tests:

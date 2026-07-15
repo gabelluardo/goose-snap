@@ -57,6 +57,9 @@ parts:
     source-type: git
     source-tag: &goose-release v1.43.0
     rust-channel: stable
+    build-environment:
+      - CARGO_INCREMENTAL: "0"
+      - CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     override-build: |
       version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)"
       if [ -z "$version" ]; then
@@ -65,8 +68,11 @@ parts:
       fi
       craftctl set version="$version"
       source ./bin/activate-hermit
+      mkdir -p "$CRAFT_PART_INSTALL/cargo-target"
+      export CARGO_TARGET_DIR="$CRAFT_PART_INSTALL/cargo-target"
       cargo build --locked --release -p goose-cli --bin goose
-      install -Dm755 target/release/goose "$CRAFT_PART_INSTALL/bin/goose"
+      install -Dm755 "$CARGO_TARGET_DIR/release/goose" "$CRAFT_PART_INSTALL/bin/goose"
+      rm -rf "$CARGO_TARGET_DIR"
     build-packages:
       - build-essential
       - pkg-config
