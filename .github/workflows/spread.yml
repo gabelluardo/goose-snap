@@ -61,7 +61,7 @@ jobs:
           SPREAD_ARCH: x86_64
         run: |
           set +e
-          spread -v garden:${{ inputs.spread-system }}:smoke/ 2>&1 | tee spread.log
+          spread -v garden:${{ inputs.spread-system }}:tests/smoke/ 2>&1 | tee spread.log
           status=${PIPESTATUS[0]}
           set -e
           exit "$status"
