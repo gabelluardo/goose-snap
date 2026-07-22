@@ -25,6 +25,6 @@ endef
 
 define FEDORA_CLOUD_INIT_USER_DATA_TEMPLATE
 $(CLOUD_INIT_USER_DATA_TEMPLATE)
-$(SNAPD_TEST_SETUP)
 - ln -s /var/lib/snapd/snap /snap
+$(SNAPD_TEST_SETUP)
 endef
