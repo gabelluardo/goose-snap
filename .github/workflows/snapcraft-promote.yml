@@ -23,7 +23,7 @@ jobs:
       deployment: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Install snapcraft
         uses: ./.github/actions/cached-snap
