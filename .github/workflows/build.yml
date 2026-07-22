@@ -75,32 +75,32 @@ jobs:
       snap-artifact: goose-snap-amd64
       spread-system: ${{ matrix.system }}
 
-  publish:
-    name: Publish
-    if: ${{ always() && github.event_name != 'pull_request' && needs.snap.result == 'success' && (needs.smoke.result == 'success' || needs.smoke.result == 'skipped') }}
-    needs: [snap, smoke]
-    runs-on: ubuntu-24.04
-    environment:
-      name: ${{ github.ref_type == 'tag' && 'latest/candidate' || vars.SNAPCRAFT_CHANNEL || 'latest/edge' }}
-      deployment: true
-    steps:
-      - name: Download snap artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: goose-snap-amd64
-          path: dist
+  # publish:
+  #   name: Publish
+  #   if: ${{ always() && github.event_name != 'pull_request' && needs.snap.result == 'success' && (needs.smoke.result == 'success' || needs.smoke.result == 'skipped') }}
+  #   needs: [snap, smoke]
+  #   runs-on: ubuntu-24.04
+  #   environment:
+  #     name: ${{ github.ref_type == 'tag' && 'latest/candidate' || vars.SNAPCRAFT_CHANNEL || 'latest/edge' }}
+  #     deployment: true
+  #   steps:
+  #     - name: Download snap artifact
+  #       uses: actions/download-artifact@v8
+  #       with:
+  #         name: goose-snap-amd64
+  #         path: dist
 
-      - name: Install snapcraft
-        uses: ./.github/actions/cached-snap
-        with:
-          name: snapcraft
-          classic: 'true'
+  #     - name: Install snapcraft
+  #       uses: ./.github/actions/cached-snap
+  #       with:
+  #         name: snapcraft
+  #         classic: "true"
 
-      - name: Upload snap
-        env:
-          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
-          SNAP_CHANNEL: ${{ github.ref_type == 'tag' && 'latest/candidate' || vars.SNAPCRAFT_CHANNEL || 'latest/edge' }}
-        run: |
-          set -euo pipefail
-          snap_file="$(ls dist/*.snap | head -n 1)"
-          snapcraft upload --release "$SNAP_CHANNEL" "$snap_file"
+  #     - name: Upload snap
+  #       env:
+  #         SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+  #         SNAP_CHANNEL: ${{ github.ref_type == 'tag' && 'latest/candidate' || vars.SNAPCRAFT_CHANNEL || 'latest/edge' }}
+  #       run: |
+  #         set -euo pipefail
+  #         snap_file="$(ls dist/*.snap | head -n 1)"
+  #         snapcraft upload --release "$SNAP_CHANNEL" "$snap_file"

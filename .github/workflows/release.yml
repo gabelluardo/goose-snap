@@ -14,7 +14,7 @@ on:
         type: string
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: write
