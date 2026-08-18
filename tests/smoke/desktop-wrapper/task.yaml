@@ -1,6 +1,6 @@
 summary: Check desktop launcher payload
 details: |
-    Confirm that the installed launcher and bundled Electron binary are present.
+    Confirm that the installed launcher invokes the bundled Electron binary.
 
 execute: |
     snap_dir="/snap/goose/current"
@@ -15,5 +15,11 @@ execute: |
     if [ ! -x "$desktop_bin" ]; then
         echo "desktop binary is missing or not executable: $desktop_bin" >&2
         ls -la "$snap_dir/opt/goose-desktop" 2>&1 || true
+        exit 1
+    fi
+
+    if ! grep -F 'exec "$APP_ROOT/Goose"' "$launcher" >/dev/null; then
+        echo "desktop launcher does not invoke the bundled Electron binary" >&2
+        cat "$launcher" >&2
         exit 1
     fi
