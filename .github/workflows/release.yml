@@ -49,11 +49,20 @@ jobs:
           echo "value=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Compare tag with packaged Goose version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           packaged="$(sed -nE 's/^[[:space:]]*source-tag:[[:space:]]*(&[^[:space:]]+[[:space:]]*)?(v[^[:space:]#]+).*/\2/p' snap/snapcraft.yaml | head -n1)"
           if [ "${{ steps.tag.outputs.value }}" != "$packaged" ]; then
             echo "release tag ${{ steps.tag.outputs.value }} does not match snapcraft source-tag $packaged" >&2
+            exit 1
+          fi
+
+          upstream="$(gh api repos/aaif-goose/goose/releases/latest --jq .tag_name)"
+          newest="$(printf '%s\n%s\n' "$upstream" "${{ steps.tag.outputs.value }}" | sort -V | tail -n1)"
+          if [ "$newest" != "$upstream" ]; then
+            echo "release tag ${{ steps.tag.outputs.value }} is newer than upstream latest release $upstream" >&2
             exit 1
           fi
 
