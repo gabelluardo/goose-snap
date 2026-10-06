@@ -19,8 +19,8 @@ The desktop app is exposed as `goose`; the CLI is exposed as `goose.cli`.
 
 ## Updating the version
 
-The version is determined by selecting the Git tag of opencode.
-To update to a new upstream release just change that and commit.
+The version is determined by the Goose `source-tag` in `snap/snapcraft.yaml`.
+Renovate updates the packaged tag and the expected smoke-test version together.
 
 ## Testing with spread
 
@@ -32,14 +32,14 @@ Install the `image-garden` snap, which provides the image management tooling
 spread depends on:
 
 ```sh
-sudo snap install image-garden
+sudo snap install "image-garden+qemu-x86-64+spread"
 ```
 
 The `image-garden` snap ships a `image-garden.spread` binary that acts as a
 spread backend. Use it to run the tests:
 
 ```sh
-image-garden.spread
+image-garden.spread garden:ubuntu-cloud-24.04:tests/smoke/
 ```
 
 This will pull the necessary virtual machine base images, and execute the test
@@ -47,4 +47,9 @@ cases defined under `tests/`.
 
 ## Publishing
 
-See `publishing/README.md` for details.
+The build workflow routes branch builds to `latest/edge` and tagged builds to
+`latest/candidate`. Promotion to beta or stable is manual and protected by the
+matching GitHub environment.
+
+See `publishing/README.md` for credential setup and `AGENTS.md` for the CI and
+packaging architecture.

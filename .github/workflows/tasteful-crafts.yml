@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Canonical Ltd.
+name: tasteful crafts
+
+on:
+    workflow_call:
+        inputs:
+            snapstore-channel:
+                type: string
+                required: true
+            skip-spread-tests:
+                type: boolean
+                required: false
+                default: false
+            enable-pkgproxy:
+                type: boolean
+                required: false
+                default: true
+            lxd-channel:
+                type: string
+                required: false
+                default: latest/stable
+            snapcraft-channel:
+                type: string
+                required: false
+                default: latest/stable
+            image-garden-channel:
+                type: string
+                required: false
+                default: latest/stable
+        secrets:
+            publish-credentials:
+                required: true
+
+jobs:
+    discover-spread-systems:
+        name: discover spread systems
+        if: ${{ !inputs.skip-spread-tests }}
+        runs-on: ubuntu-24.04
+        outputs:
+            spread-systems: ${{ steps.discover.outputs.spread-systems }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7.0.1
+
+            - name: Install image-garden and spread
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  sudo snap install "image-garden+qemu-x86-64+spread" --channel "${{ inputs.image-garden-channel }}"
+                  sudo snap alias image-garden.spread spread
+
+            - name: Discover spread systems
+              id: discover
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  systems="$(
+                    spread -list | cut -d : -f 2 | sort -u |
+                      python3 -c 'import json, sys; print(json.dumps([line.strip() for line in sys.stdin if line.strip()]))'
+                  )"
+                  if [ "$systems" = "[]" ]; then
+                    echo "no spread systems discovered" >&2
+                    exit 1
+                  fi
+                  echo "spread-systems=$systems" >> "$GITHUB_OUTPUT"
+
+    snapcraft-pack:
+        name: snapcraft (amd64)
+        uses: ./.github/workflows/snapcraft-pack.yml
+        with:
+            job-arch: amd64
+            lxd-channel: ${{ inputs.lxd-channel }}
+            snapcraft-channel: ${{ inputs.snapcraft-channel }}
+            enable-pkgproxy: ${{ inputs.enable-pkgproxy }}
+
+    spread:
+        name: spread (amd64) - ${{ matrix.spread-system }}
+        if: ${{ !inputs.skip-spread-tests }}
+        needs: [discover-spread-systems, snapcraft-pack]
+        strategy:
+            fail-fast: false
+            matrix:
+                spread-system: ${{ fromJSON(needs.discover-spread-systems.outputs.spread-systems) }}
+        uses: ./.github/workflows/spread.yml
+        with:
+            snap-artifact: snap-${{ needs.snapcraft-pack.outputs.arch }}
+            spread-system: ${{ matrix.spread-system }}
+            enable-pkgproxy: ${{ inputs.enable-pkgproxy }}
+            image-garden-channel: ${{ inputs.image-garden-channel }}
+
+    snapcraft-upload:
+        name: snapcraft upload
+        if: ${{ always() && needs.snapcraft-pack.result == 'success' && (needs.spread.result == 'success' || needs.spread.result == 'skipped') && github.event_name != 'pull_request' && (github.ref_type == 'tag' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop') }}
+        needs: [snapcraft-pack, spread]
+        uses: ./.github/workflows/snapcraft-upload.yml
+        with:
+            artifact-name: snap-${{ needs.snapcraft-pack.outputs.arch }}
+            snapcraft-channel: ${{ inputs.snapcraft-channel }}
+            snapstore-channel: ${{ inputs.snapstore-channel }}
+            github-environment: ${{ inputs.snapstore-channel }}
+        secrets:
+            publish-credentials: ${{ secrets.publish-credentials }}

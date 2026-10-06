@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Canonical Ltd.
 name: spread
 
 on:
@@ -9,6 +11,14 @@ on:
       spread-system:
         type: string
         required: true
+      enable-pkgproxy:
+        type: boolean
+        required: false
+        default: true
+      image-garden-channel:
+        type: string
+        required: false
+        default: latest/stable
 
 jobs:
   smoke:
@@ -24,12 +34,14 @@ jobs:
           name: ${{ inputs.snap-artifact }}
           path: .
 
+      - name: Set up pkgproxy
+        if: ${{ inputs.enable-pkgproxy }}
+        id: pkgproxy
+        uses: zyga/setup-pkgproxy@v1
+
       - name: Install image-garden and spread
-        uses: ./.github/actions/cached-snap
-        with:
-          name: image-garden
-          channel: latest/stable
-          components: qemu-x86-64,spread
+        shell: bash
+        run: sudo snap install "image-garden+qemu-x86-64+spread" --channel "${{ inputs.image-garden-channel }}"
 
       - name: Use spread from image-garden
         run: sudo snap alias image-garden.spread spread
@@ -81,3 +93,17 @@ jobs:
           name: image-garden-logs-${{ inputs.spread-system }}
           path: .image-garden/*.log
           if-no-files-found: ignore
+
+      - name: Prepare pkgproxy cache
+        if: ${{ inputs.enable-pkgproxy && always() }}
+        shell: bash
+        run: |
+          sudo systemctl stop pkgproxy.service || true
+          sudo chown -R "$USER:$USER" /var/cache/pkgproxy
+
+      - name: Save pkgproxy cache
+        if: ${{ inputs.enable-pkgproxy && steps.pkgproxy.outputs.package-cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: /var/cache/pkgproxy
+          key: ${{ steps.pkgproxy.outputs.package-cache-key-success }}

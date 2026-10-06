@@ -1,46 +1,30 @@
 # Publishing
 
-The build workflow can upload Goose snap builds to the Snap Store when a GitHub
-environment provides `SNAPCRAFT_STORE_CREDENTIALS`.
+The build workflow publishes branch builds to `latest/edge` and tagged builds
+to `latest/candidate`. Promotion from candidate to beta or stable is manual.
 
-Create credentials locally from a machine where you are logged in with
-`snapcraft login`.
+Create the credentials on a machine where `snapcraft` is installed and you are
+logged in with `snapcraft login`:
 
 ```bash
 cd publishing
 
-# latest/edge -> edge-credentials
-./export-credentials.sh
-
-# latest/candidate -> candidate-credentials
-./export-credentials.sh --channel latest/candidate
-
-# latest/stable -> stable-credentials
-./export-credentials.sh \
-  --channel latest/stable \
-  --acls package_access,package_release
-```
-
-You can override all values:
-
-```bash
-./export-credentials.sh \
-  --snap-name goose \
-  --channel latest/edge \
-  --acls package_upload,package_release \
-  --output edge-credentials
+./export-edge-credentials.sh
+./export-candidate-credentials.sh
+./export-beta-credentials.sh
+./export-stable-credentials.sh
 ```
 
 Generated files are ignored by Git.
 
-| File | GitHub environment | Purpose |
-| --- | --- | --- |
-| `edge-credentials` | `latest/edge` | publish branch builds |
-| `candidate-credentials` | `latest/candidate` | publish tagged builds |
-| `stable-credentials` | `latest/stable` | promote tested revisions |
+| File                    | GitHub environment | Purpose                     |
+| ----------------------- | ------------------ | --------------------------- |
+| `edge-credentials`      | `latest/edge`      | publish branch builds       |
+| `candidate-credentials` | `latest/candidate` | publish tagged builds       |
+| `beta-credentials`      | `latest/beta`      | promote candidate revisions |
+| `stable-credentials`    | `latest/stable`    | promote candidate revisions |
 
 For each environment, create a secret named `SNAPCRAFT_STORE_CREDENTIALS` and
 paste the matching file content into it.
 
-The stable environment should normally require manual approval before jobs can
-use its secret.
+Promotion environments should require manual approval.

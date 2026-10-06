@@ -1,35 +1,37 @@
+# SPDX-FileCopyrightText: Canonical Ltd.
+# SPDX-License-Identifier: Apache-2.0
 name: Promote
 
 on:
   workflow_dispatch:
     inputs:
-      source-channel:
-        description: Snap Store channel to promote revisions from
+      risk:
+        description: Risk level to promote into
         required: true
-        default: latest/candidate
-        type: string
-      target-channel:
-        description: Snap Store channel to promote revisions into
-        required: true
-        default: latest/stable
-        type: string
+        default: stable
+        type: choice
+        options:
+          - beta
+          - stable
 
 jobs:
   promote:
-    name: ${{ inputs.source-channel }} to ${{ inputs.target-channel }}
+    name: latest/candidate to latest/${{ inputs.risk }}
     runs-on: ubuntu-24.04
     environment:
-      name: ${{ inputs.target-channel }}
+      name: latest/${{ inputs.risk }}
       deployment: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
 
-      - name: Install snapcraft
-        uses: ./.github/actions/cached-snap
-        with:
-          name: snapcraft
-          classic: 'true'
+      - name: Set up pkgproxy
+        id: pkgproxy
+        uses: zyga/setup-pkgproxy@v1
+
+      - name: Install Snapcraft
+        shell: bash
+        run: sudo snap install snapcraft --channel latest/stable --classic
 
       - name: Read snap name
         id: snap-name
@@ -49,7 +51,21 @@ jobs:
         run: |
           set -euo pipefail
           snapcraft promote \
-            --from-channel="${{ inputs.source-channel }}" \
-            --to-channel="${{ inputs.target-channel }}" \
+            --from-channel=latest/candidate \
+            --to-channel="latest/${{ inputs.risk }}" \
             --yes \
             "$SNAP_NAME"
+
+      - name: Prepare pkgproxy cache
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          sudo systemctl stop pkgproxy.service || true
+          sudo chown -R "$USER:$USER" /var/cache/pkgproxy
+
+      - name: Save pkgproxy cache
+        if: ${{ steps.pkgproxy.outputs.package-cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: /var/cache/pkgproxy
+          key: ${{ steps.pkgproxy.outputs.package-cache-key-success }}

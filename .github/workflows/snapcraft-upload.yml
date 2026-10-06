@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Canonical Ltd.
+name: snapcraft upload
+
+on:
+    workflow_call:
+        inputs:
+            artifact-name:
+                type: string
+                required: true
+            snapcraft-channel:
+                type: string
+                required: false
+                default: latest/stable
+            snapstore-channel:
+                type: string
+                required: true
+            github-environment:
+                type: string
+                required: true
+        secrets:
+            publish-credentials:
+                required: true
+
+jobs:
+    upload:
+        name: upload
+        runs-on: ubuntu-24.04
+        environment:
+            name: ${{ inputs.github-environment }}
+            deployment: true
+        steps:
+            - name: Install Snapcraft
+              shell: bash
+              run: sudo snap install snapcraft --channel "${{ inputs.snapcraft-channel }}" --classic
+
+            - name: Download snap artifact
+              uses: actions/download-artifact@v8
+              with:
+                  name: ${{ inputs.artifact-name }}
+                  path: ./snaps
+
+            - name: Release snap
+              shell: bash
+              env:
+                  SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.publish-credentials }}
+                  SNAP_CHANNEL: ${{ inputs.snapstore-channel }}
+              run: |
+                  set -euo pipefail
+                  if [[ "$SNAP_CHANNEL" != latest/* ]]; then
+                    echo "refusing to publish Goose outside the latest track: $SNAP_CHANNEL" >&2
+                    exit 1
+                  fi
+
+                  shopt -s nullglob
+                  snaps=(./snaps/*.snap)
+                  if [ "${#snaps[@]}" -ne 1 ]; then
+                    echo "expected one snap, found ${#snaps[@]}" >&2
+                    exit 1
+                  fi
+                  snapcraft upload --verbosity=brief "${snaps[0]}" --release "$SNAP_CHANNEL"
