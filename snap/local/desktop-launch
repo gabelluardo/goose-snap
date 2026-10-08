@@ -1,6 +1,6 @@
 #!/bin/bash
 ###############################################################################
-# Launcher wrapper for the goose desktop (Electron) app inside a classic snap.
+# Launcher for the Goose desktop (Electron) app inside a classic snap.
 #
 # Classic confinement gives the app full host access, so Electron's own
 # chrome-sandbox (which relies on a SUID helper) cannot be used and must be
