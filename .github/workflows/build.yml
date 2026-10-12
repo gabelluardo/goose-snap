@@ -34,7 +34,7 @@ concurrency:
 jobs:
   route:
     name: Route channel
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       snapstore-channel: ${{ steps.route.outputs.snapstore-channel }}
     steps:
