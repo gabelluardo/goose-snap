@@ -30,7 +30,7 @@ The important parts in `snap/snapcraft.yaml` are:
 
 | Part                  | Purpose                                               |
 | --------------------- | ----------------------------------------------------- |
-| `launcher`            | Install the Electron launcher wrapper                 |
+| `launcher`            | Install the Electron launcher                         |
 | `goose-cli`           | Build the Rust CLI with the upstream Hermit toolchain |
 | `goose-desktop`       | Build and package the Electron desktop application    |
 | `goose-configuration` | Generate shell completions                            |
@@ -45,7 +45,7 @@ Spread discovers the systems from `spread.yaml` and runs the tasks under
 `tests/smoke/` on Ubuntu 24.04, Ubuntu 26.04, Debian 13, and Fedora 43.
 
 - `goose-cli` verifies installation, help output, and the packaged version.
-- `desktop-wrapper` verifies the launcher and Electron binary paths.
+- `desktop-launcher` verifies the launcher and Electron binary paths.
 
 Keep the expected CLI version synchronized with the upstream `source-tag`.
 Renovate manages both values through `renovate.json`.
