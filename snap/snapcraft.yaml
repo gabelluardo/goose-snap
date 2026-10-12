@@ -40,8 +40,6 @@ apps:
   goose:
     command: bin/desktop-launch
     desktop: usr/share/applications/goose.desktop
-    plugs:
-      - desktop
 
 parts:
   launcher:
