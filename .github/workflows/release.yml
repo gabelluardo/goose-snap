@@ -19,6 +19,7 @@ on:
       - "v*"
 
 permissions:
+  actions: write
   contents: write
   pull-requests: read
 
@@ -141,6 +142,20 @@ jobs:
               if (error.status !== 422) throw error;
               core.info(`Tag ${process.env.RELEASE_TAG} already exists.`);
             }
+
+      - name: Build and publish candidate snap
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/github-script@v9
+        env:
+          RELEASE_TAG: ${{ steps.context.outputs.tag }}
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              ...context.repo,
+              workflow_id: "build.yml",
+              ref: process.env.RELEASE_TAG,
+            });
+            core.info(`Dispatched Build for ${process.env.RELEASE_TAG}.`);
 
       - name: Create or update GitHub release
         uses: actions/github-script@v9
