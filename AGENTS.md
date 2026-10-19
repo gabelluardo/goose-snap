@@ -35,8 +35,8 @@ The important parts in `snap/snapcraft.yaml` are:
 | `goose-desktop`       | Build and package the Electron desktop application    |
 | `goose-configuration` | Generate shell completions                            |
 
-The `goose` app launches the desktop application through
-`snap/local/desktop-launch`; `goose.cli` exposes the CLI. The desktop app is
+The `goose` app exposes the CLI; `goose.desktop` launches the desktop
+application through `snap/local/desktop-launch`. The desktop app is
 part of the snap, not a snap component.
 
 ## Testing

@@ -15,7 +15,7 @@ snapcraft pack
 sudo snap install --classic --dangerous goose_*.snap
 ```
 
-The desktop app is exposed as `goose`; the CLI is exposed as `goose.cli`.
+The CLI is exposed as `goose`; the desktop app is exposed as `goose.desktop`.
 
 ## Updating the version
 
