@@ -7,6 +7,8 @@ execute: |
     launcher="$snap_dir/bin/desktop-launch"
     desktop_bin="$snap_dir/opt/goose-desktop/Goose"
 
+    snap run --shell goose.desktop -c 'test "$SNAP_NAME" = goose'
+
     if [ ! -x "$launcher" ]; then
         echo "desktop launcher is missing or not executable: $launcher" >&2
         exit 1

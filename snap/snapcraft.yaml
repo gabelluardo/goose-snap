@@ -7,8 +7,8 @@ description: |
   suggestions - it installs, executes, edits, and tests with any LLM.
 
   This snap bundles both interfaces from the same release:
-    * goose     - the Electron desktop application
-    * goose.cli - the goose command line interface
+    * goose         - the goose command line interface
+    * goose.desktop - the Electron desktop application
 
   Because goose runs host toolchains and arbitrary developer commands, this
   snap uses classic confinement to operate with full host access.
@@ -34,10 +34,10 @@ platforms:
     build-for: [amd64]
 
 apps:
-  cli:
-    command: bin/goose
-    completer: usr/share/bash-completion/completions/goose.cli
   goose:
+    command: bin/goose
+    completer: usr/share/bash-completion/completions/goose
+  desktop:
     command: bin/desktop-launch
     desktop: usr/share/applications/goose.desktop
 
@@ -141,21 +141,21 @@ parts:
     source: snap/local
     override-build: |
       install -dm755 "$CRAFT_PART_INSTALL"/usr/share/bash-completion/completions
-      "$CRAFT_STAGE"/bin/goose completion bash --bin-name goose.cli \
-        > "$CRAFT_PART_INSTALL"/usr/share/bash-completion/completions/goose.cli
+      "$CRAFT_STAGE"/bin/goose completion bash --bin-name goose \
+        > "$CRAFT_PART_INSTALL"/usr/share/bash-completion/completions/goose
       install -dm755 "$CRAFT_PART_INSTALL"/usr/share/fish/vendor_completions.d
-      "$CRAFT_STAGE"/bin/goose completion fish --bin-name goose.cli \
-        > "$CRAFT_PART_INSTALL"/usr/share/fish/vendor_completions.d/goose.cli.fish
+      "$CRAFT_STAGE"/bin/goose completion fish --bin-name goose \
+        > "$CRAFT_PART_INSTALL"/usr/share/fish/vendor_completions.d/goose.fish
       install -dm755 "$CRAFT_PART_INSTALL"/usr/share/zsh/vendor-completions
-      "$CRAFT_STAGE"/bin/goose completion zsh --bin-name goose.cli \
-        > "$CRAFT_PART_INSTALL"/usr/share/zsh/vendor-completions/_goose.cli
+      "$CRAFT_STAGE"/bin/goose completion zsh --bin-name goose \
+        > "$CRAFT_PART_INSTALL"/usr/share/zsh/vendor-completions/_goose
       mkdir -p "$CRAFT_PART_INSTALL/usr/share/applications"
       printf '%s\n' \
         '[Desktop Entry]' \
         'Name=Goose' \
         'GenericName=Goose AI Agent' \
         'Comment=An open source, extensible AI agent that automates engineering tasks' \
-        'Exec=goose %U' \
+        'Exec=goose.desktop %U' \
         'Icon=${SNAP}/meta/gui/icon.png' \
         'Terminal=false' \
         'Type=Application' \
