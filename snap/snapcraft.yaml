@@ -53,7 +53,7 @@ parts:
     plugin: rust
     source: https://github.com/aaif-goose/goose
     source-type: git
-    source-tag: &goose-release v1.55.0
+    source-tag: &goose-release v1.56.0
     source-depth: 1
     rust-channel: stable
     build-environment:
