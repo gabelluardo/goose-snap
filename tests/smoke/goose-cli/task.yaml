@@ -5,4 +5,4 @@ details: |
 execute: |
     snap list | MATCH "goose"
     snap run goose --help 2>&1 | MATCH "Usage: goose"
-    snap run goose --version 2>&1 | MATCH "1.55.0"
+    snap run goose --version 2>&1 | MATCH "1.56.0"
