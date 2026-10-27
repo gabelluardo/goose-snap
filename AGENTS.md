@@ -17,8 +17,11 @@ tag builds to `latest/candidate`, then delegates to `tasteful-crafts.yml`.
 | `release.yml`           | Validate tags and create GitHub release notes      |
 
 Build, test, and promotion jobs use `zyga/setup-pkgproxy@v1` to cache package
-and snap downloads. Publishing jobs read `SNAPCRAFT_STORE_CREDENTIALS` from a
-GitHub environment named after their destination channel.
+and snap downloads. pkgproxy is opt-in: it is used only when the
+`ENABLE_PKGPROXY` repository variable is `'true'`; `build.yml` passes it as the
+`enable-pkgproxy` input and `snapcraft-promote.yml` checks it directly.
+Publishing jobs read `SNAPCRAFT_STORE_CREDENTIALS` from a GitHub environment
+named after their destination channel.
 
 Only the `latest` Snap Store track is supported. Pull requests build and test
 but never publish. Skipping Spread tests is available only through manual
