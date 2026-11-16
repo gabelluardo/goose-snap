@@ -37,7 +37,7 @@ jobs:
       - name: Set up pkgproxy
         if: ${{ inputs.enable-pkgproxy }}
         id: pkgproxy
-        uses: zyga/setup-pkgproxy@v1
+        uses: zyga/setup-pkgproxy@v2
 
       - name: Install image-garden and spread
         shell: bash

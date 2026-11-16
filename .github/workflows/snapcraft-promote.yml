@@ -28,7 +28,7 @@ jobs:
       - name: Set up pkgproxy
         if: ${{ vars.ENABLE_PKGPROXY == 'true' }}
         id: pkgproxy
-        uses: zyga/setup-pkgproxy@v1
+        uses: zyga/setup-pkgproxy@v2
 
       - name: Install Snapcraft
         shell: bash
